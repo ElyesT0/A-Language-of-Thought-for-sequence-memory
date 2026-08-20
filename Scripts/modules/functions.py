@@ -5306,6 +5306,47 @@ def plot_comparison_AIC_models(path, aic_arr, title="Δ(AIC) of different comple
     plt.savefig(f'{path}/models/comparison_explanation/AIC_complexity_models.jpg', bbox_inches='tight', dpi=_adaptive_dpi())
     plt.show()  # Close figure to prevent memory issues.
 
+
+def plot_distribution_dl_per_seq(data, path):
+    import os
+    os.makedirs(path, exist_ok=True)
+
+    plt.rcParams["figure.facecolor"] = "white"
+
+    all_bins = np.arange(0, 13)
+    global_max = max(
+        data[data["seq_name"] == seq]["distance_dl"].dropna()
+            .value_counts().reindex(all_bins, fill_value=0).max()
+        for seq in seq_name_list
+    )
+
+    for i, seq in enumerate(seq_name_list):
+        seq_data = data[data["seq_name"] == seq]["distance_dl"].dropna()
+        value_counts = seq_data.value_counts().reindex(all_bins, fill_value=0)
+
+        fig, ax = plt.subplots(figsize=(8, 5))
+        color = plot_colors[i % len(plot_colors)]
+
+        ax.bar(all_bins, value_counts.values, color=color,
+               edgecolor='white', linewidth=bar_frame_width, width=0.8)
+        ax.set_xticks(all_bins)
+        ax.set_ylim(0, global_max)
+
+        ax.set_xlabel("Damerau-Levenshtein Distance", fontsize=title_size, labelpad=padding_size)
+        ax.set_ylabel("Count", fontsize=title_size, labelpad=padding_size)
+        ax.tick_params(axis='x', labelsize=16)
+        ax.tick_params(axis='y', labelsize=16)
+        ax.spines["right"].set_visible(False)
+        ax.spines["top"].set_visible(False)
+        plt.title(f"DL Distance Distribution — {seq}", size=title_size, pad=padding_size)
+
+        safe_name = seq.replace(" ", "_").replace("/", "_")
+        plt.savefig(f'{path}/{i}_{safe_name}.png', bbox_inches='tight', dpi=_adaptive_dpi())
+        plt.close(fig)
+
+    print(f"Saved {len(seq_name_list)} distribution plots to: {path}")
+
+
 '''
 # ---------------------------------------
 # ********* Versions changelogs *********
