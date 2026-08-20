@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep -E \"\\\\.py$\")",
+      "Bash(python3 *)",
+      "Bash(pyenv which *)",
+      "Bash(pyenv version *)",
+      "Bash(/opt/anaconda3/bin/python -c ' *)",
+      "Bash(/Users/elyestabbane/.pyenv/versions/3.9.21/bin/python -c \"import matplotlib; print\\('matplotlib ok'\\); import numpy; print\\('numpy ok'\\)\")",
+      "Bash(/Users/elyestabbane/.pyenv/versions/3.8.19/bin/python *)",
+      "Bash(grep -v \".py$\")",
+      "Bash(/Users/elyestabbane/.pyenv/versions/3.9.21/bin/python3.9 -c \"import matplotlib; print\\('ok', matplotlib.__version__\\)\")",
+      "Bash(/Users/elyestabbane/.pyenv/versions/3.9.21/bin/python3.9 *)",
+      "Bash(/opt/anaconda3/envs/data_analysis/bin/python *)",
+      "Bash(Rscript *)"
+    ]
+  }
+}

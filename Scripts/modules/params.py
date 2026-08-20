@@ -579,7 +579,7 @@ complexities_post_fit_exp1={
     "control Mirror-NoRep":12,
 
 
-# Only below values are relevant.
+# Only below values are relevant. This is used in the main article.
      "Repetition-2":7.593044574599119, 
     "control Repetition-2":15.714093590000001, 
     "Repetition-3":9.135983343653503, 
