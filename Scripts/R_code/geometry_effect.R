@@ -82,17 +82,15 @@ make_logger <- function() {
 #   (Satterthwaite denominator df).
 # For binary outcome (fail): glmer, binomial family + car::Anova Wald chi-square.
 #
-# Both report the starting_vertex main effect and the starting_vertex:seq_name
-# interaction — the two terms relevant for ruling out a starting-position confound.
+# Reports the starting_vertex main effect — relevant for ruling out a starting-position confound.
 
 run_omnibus <- function(data, seq_names, outcome, logger) {
   sub            <- data[data$seq_name %in% seq_names & !is.na(data[[outcome]]), ]
-  sub$seq_name        <- droplevels(sub$seq_name)
   sub$starting_vertex <- droplevels(sub$starting_vertex)
 
   is_binary <- outcome == "fail"
   formula_str <- sprintf(
-    "%s ~ starting_vertex * seq_name + (1 | participant_ID)", outcome
+    "%s ~ starting_vertex + (1 | participant_ID)", outcome
   )
   frm <- as.formula(formula_str)
 
@@ -118,27 +116,29 @@ run_omnibus <- function(data, seq_names, outcome, logger) {
   if (is_binary) {
     # Wald chi-square from car::Anova (type III)
     an <- Anova(fit, type = 3)
-    terms_of_interest <- c("starting_vertex", "starting_vertex:seq_name")
+    terms_of_interest <- c("starting_vertex")
     for (term in terms_of_interest) {
       if (!term %in% rownames(an)) next
       chi2 <- an[term, "Chisq"]
       df_t <- an[term, "Df"]
       p    <- an[term, "Pr(>Chisq)"]
-      logger$log(sprintf("  %-35s Chi2(%d) = %6.3f,  p = %.4f",
-                         term, df_t, chi2, p))
+      r_es <- sqrt(chi2 / (chi2 + nrow(sub)))
+      logger$log(sprintf("  %-35s Chi2(%d) = %6.3f,  p = %.4f,  r = %.3f",
+                         term, df_t, chi2, p, r_es))
     }
   } else {
     # F-test with Satterthwaite df from lmerTest
     an <- anova(fit, type = "III")
-    terms_of_interest <- c("starting_vertex", "starting_vertex:seq_name")
+    terms_of_interest <- c("starting_vertex")
     for (term in terms_of_interest) {
       if (!term %in% rownames(an)) next
-      f_val <- an[term, "F value"]
-      df1   <- an[term, "NumDF"]
-      df2   <- an[term, "DenDF"]
-      p     <- an[term, "Pr(>F)"]
-      logger$log(sprintf("  %-35s F(%d, %6.1f) = %6.3f,  p = %.4f",
-                         term, df1, df2, f_val, p))
+      f_val  <- an[term, "F value"]
+      df1    <- an[term, "NumDF"]
+      df2    <- an[term, "DenDF"]
+      p      <- an[term, "Pr(>F)"]
+      eta2_p <- (f_val * df1) / (f_val * df1 + df2)
+      logger$log(sprintf("  %-35s F(%d, %6.1f) = %6.3f,  p = %.4f,  η²p = %.3f",
+                         term, df1, df2, f_val, p, eta2_p))
     }
     # ICC from random effects
     re       <- as.data.frame(VarCorr(fit))
@@ -159,7 +159,7 @@ run_geometry_lmm <- function(data, seq_names, out_dir, exp_label) {
   logger$log(sprintf("Generated:    %s", date_str))
   logger$log(sprintf("Input script: %s", script_file))
   logger$log(sprintf("Output dir:   %s", out_dir))
-  logger$log(sprintf("Model:        outcome ~ starting_vertex * seq_name + (1|participant_ID)"))
+  logger$log(sprintf("Model:        outcome ~ starting_vertex + (1|participant_ID)"))
   logger$log(sprintf("Note:         Continuous outcomes (DL, RT) use lmer + Satterthwaite F-test."))
   logger$log(sprintf("              Binary outcome (error rate) uses glmer + Wald chi-square."))
   logger$log(strrep("=", 60))
