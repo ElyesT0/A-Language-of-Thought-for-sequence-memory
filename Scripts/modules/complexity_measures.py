@@ -151,26 +151,26 @@ def change_complexity_multisymbol(seq):
     return changes
 
 
-def algorithmic_complexity(sequence):
+def compression_complexity(sequence):
     """
-    Computes an approximation of the algorithmic complexity of a sequence
+    Computes an approximation of the compression complexity of a sequence
     using compression-based methods.
 
     Parameters:
-    sequence (str): The input sequence for which the algorithmic complexity is to be computed.
+    sequence (str): The input sequence for which the compression complexity is to be computed.
 
     Returns:
-    int: The approximate algorithmic complexity of the sequence.
+    int: The approximate compression complexity of the sequence.
     """
     # Convert the sequence to bytes
     sequence_bytes = sequence.encode('utf-8')
-    
+
     # Compress the sequence using zlib
     compressed_sequence = zlib.compress(sequence_bytes)
-    
-    # The length of the compressed sequence is used as an approximation of the algorithmic complexity
+
+    # The length of the compressed sequence is used as an approximation of the compression complexity
     complexity = len(compressed_sequence)
-    
+
     return complexity
 
 
@@ -246,7 +246,7 @@ dict_shannon_entropy_bigram = {key: compute_bigram_entropy(value) for key, value
 dict_lz_complexity={key: lempel_ziv_complexity(value) for key, value in real_mapping.items()}
 dict_change_complexity={key: AG_complexity([int(i) for i in value]) for key, value in real_mapping.items()}
 dict_change_complexity_multi={key: change_complexity_multisymbol([int(i) for i in value]) for key, value in real_mapping.items()}
-dict_algorithmic_complexity={key: algorithmic_complexity(value) for key, value in real_mapping.items()}
+dict_compression_complexity={key: compression_complexity(value) for key, value in real_mapping.items()}
 dict_subsymetrie={key: count_subsymmetries(value) for key, value in real_mapping.items()}
 dict_chunk_complexity_local={key:value for key,value in zip(real_mapping.keys(),chunk_comp_array)}
 dict_chunk_complexity_global={key:value for key,value in zip(real_mapping.keys(),chunk_comp_array_global)}

@@ -887,10 +887,12 @@ name_complexities=[
     'Lempel-Ziv',
     'Change Complexity',
     'Change Complexity Extended',
-    'Algorithmic Complexity',
+    'Compression Complexity',
     'Subsymetries',
     'Chunk Complexity Local',
     'Chunk Complexity Global',
+    'LAHL',
+    'Shannon Entropy 2',
 ]
 
 aic_values=[
@@ -932,20 +934,6 @@ aic_values_ext=[
     19354.671435
 ]
 
-# -- AIC values for : experiment 2 AND seq_name_list_exp1_only
-# aic_values_exp2_rep=[
-#   6161.755118, #AIC_value_LoT
-#   6276.880730, #AIC_value_subjective
-#   6908.272433, #AIC_value_ShannonEntropy
-#   6623.987869, #AIC_value_ShannonEntropyBigram
-#   6351.666211, #AIC_value_LempelZiv
-#   6920.833588, #AIC_value_change
-#   6525.656380, #AIC_value_algorithmic
-#   6954.916696, #AIC_value_Subsymetries
-#   6953.193236, #AIC_value_chunk_local
-#   6635.228269 # AIC_value_chunk_global
-# ]
-
 aic_values_exp2_rep=[
   6184.638145, #AIC_value_LoT
   6276.880730, #AIC_value_subjective
@@ -954,10 +942,12 @@ aic_values_exp2_rep=[
   6351.666211, #AIC_value_LempelZiv
   6920.833588, #AIC_value_change
   6952.284966, #AIC_value_change_extended
-  6525.656380, #AIC_value_algorithmic
+  6525.656380, #AIC_value_compression
   6954.916696, #AIC_value_Subsymetries
   6953.193236, #AIC_value_chunk_local
-  6635.228269 # AIC_value_chunk_global
+  6635.228269, # AIC_value_chunk_global
+  6822.820065,# LAHL
+  6495.082794,# Shannon Entropy 2
 ]
 
 
@@ -969,7 +959,7 @@ bic_values_exp2_rep = [
     6645.407877, # BIC_value_ShannonEntropyBigram
     6373.086219, # BIC_value_LempelZiv
     6942.253595, # BIC_value_change
-    6547.076388, # BIC_value_algorithmic
+    6547.076388, # BIC_value_compression
     6976.336704, # BIC_value_Subsymetries
     6974.613244, # BIC_value_chunk
     6656.648276,
@@ -982,7 +972,7 @@ aic_values_exp2_rep_corrected=[
   6617.435862, #AIC_value_ShannonEntropyBigram
   6342.055998, #AIC_value_LempelZiv
   6910.640888, #AIC_value_change
-  6516.256528, #AIC_value_algorithmic
+  6516.256528, #AIC_value_compression
   6943.499622, #AIC_value_Subsymetries
   6945.673370, #AIC_value_chunk_local
   6625.928863 # AIC_value_chunk_global
@@ -1052,3 +1042,31 @@ mean_revised_subjective_complexity = {'Repetition-2': 1.63,
                             'Suppression': 4.57,
                             'Insertion': 3.93
 }
+
+
+# ----------------------------------------------------------------------
+# ****************** New competitor statistical models *****************
+# ----------------------------------------------------------------------
+# LHAL, beta = 0.6
+
+LAHL_dict = {'Repetition-2': 1.9987021585210645,
+ 'control Repetition-2': 1.9823209727764746,
+ 'Repetition-3': 4.74969847030056,
+ 'control Repetition-3': 4.746874355626684,
+ 'Repetition-4': 7.987035580205436,
+ 'control Repetition-4': 7.803552439114673,
+ 'Repetition-Nested': 4.665849460177822,
+ 'control NoLocal nested': 4.73457354149259,
+ 'control NoGlobal nested': 4.541544254248045}
+
+# Shannon Entropy 2
+
+shannon_entropy_2_dict = {'Repetition-2': 0.0,
+ 'control Repetition-2': 1.9709505944546688,
+ 'Repetition-3': 0.0,
+ 'control Repetition-3': 3.4182958340544896,
+ 'Repetition-4': 0.0,
+ 'control Repetition-4': 5.088220835496801,
+ 'Repetition-Nested': 2.9182958340544896,
+ 'control NoLocal nested': 2.9182958340544896,
+ 'control NoGlobal nested': 3.9182958340544896}

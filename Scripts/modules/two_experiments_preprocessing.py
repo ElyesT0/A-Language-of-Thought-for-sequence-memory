@@ -40,7 +40,15 @@ save_path=os.path.join(path_processed_data,'both')
 df_base=pd.read_csv(path_experiment_base)
 df_ext=pd.read_csv(path_experiment_ext)
 
-# --- 
+# ---
+# Exclude experiment 1 participants with more than 18 trials (completed experiment more than once)
+# ---
+exp1_trial_counts = df_base.groupby('participant_ID').size()
+exp1_over18 = exp1_trial_counts[exp1_trial_counts > 18].index
+print(f'{len(exp1_over18)} experiment 1 participants excluded for having more than 18 trials: {list(exp1_over18)}')
+df_base = df_base[~df_base['participant_ID'].isin(exp1_over18)].reset_index(drop=True)
+
+# ---
 # Specify experiment
 # ---
 df_base['which_exp']='base'
@@ -65,6 +73,13 @@ df_ext.loc[incomplete_mask, 'which_exp'] = 'incomplete'
 df_ext=df_ext[df_ext['state']=='main_experiment']
 df_ext.reset_index(drop=True,inplace=True)
 
+# Keep only participants with exactly 49 main_experiment trials
+exp2_trial_counts = df_ext['participant_ID'].value_counts()
+exp2_keep = exp2_trial_counts[exp2_trial_counts == 49].index
+exp2_excluded = exp2_trial_counts[exp2_trial_counts != 49].index
+print(f'{len(exp2_excluded)} experiment 2 participants excluded for not having exactly 49 trials: {list(exp2_excluded)}')
+df_ext = df_ext[df_ext['participant_ID'].isin(exp2_keep)].reset_index(drop=True)
+
 
 # --- 
 # Formating datasets
@@ -81,6 +96,33 @@ df_ext = df_ext.drop(['counter', 'click_timings_before', 'interclick_timings_bef
 # Concatenating and saving dataset
 # ---
 concatenated_df=pd.concat([df_base, df_ext], ignore_index=True)
+
+# Rename seq_name values to paper-facing labels
+SEQ_MAP = {
+    'Rep-2':                   'Repetition-2',
+    'Rep-3':                   'Repetition-3',
+    'Rep-4':                   'Repetition-4',
+    'Rep-Nested':              'Repetition-Nested',
+    'Rep-Global':              'control NoLocal nested',
+    'Rep-Local':               'control NoGlobal nested',
+    'CRep-2':                  'control Repetition-2',
+    'CRep-3':                  'control Repetition-3',
+    'CRep-4':                  'control Repetition-4',
+    'Mirror-Rep':              'Mirror-Rep',
+    'Mirror-NoRep':            'Mirror-NoRep',
+    'NamedSubprogram-1':       'sub-programs 1',
+    'NamedSubprogram-2':       'sub-programs 2',
+    'Print':                   'play',
+    'Print-4':                 'play 4 tokens',
+    'Control Mirror-Rep':      'control Mirror-Rep',
+    'Control Mirror-NoRep':    'control Mirror-NoRep',
+    'Control NamedSubprogram-1': 'control sub-programs 1',
+    'Control NamedSubprogram-2': 'control sub-programs 2',
+    'Control Print':           'control play',
+    'Control Print-4':         'control play 4 tokens',
+}
+concatenated_df['seq_name'] = concatenated_df['seq_name'].map(SEQ_MAP).fillna(concatenated_df['seq_name'])
+
 concatenated_df.to_csv(os.path.join(save_path,f'two_experiment_datasets_{date}.csv'), index=False)
 
 # --- 
@@ -96,10 +138,12 @@ all_dictionary_complexities=[
     dict_lz_complexity,
     dict_change_complexity,
     dict_change_complexity_multi,
-    dict_algorithmic_complexity,
+    dict_compression_complexity,
     dict_subsymetrie,
     dict_chunk_complexity_local,
-    dict_chunk_complexity_global
+    dict_chunk_complexity_global,
+    LAHL_dict,
+    shannon_entropy_2_dict,
 ]
 
 

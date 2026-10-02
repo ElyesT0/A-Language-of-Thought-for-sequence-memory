@@ -1,6 +1,6 @@
 from modules.params import *
 
-def _adaptive_dpi(target_px=3000, min_dpi=150, max_dpi=600):
+def _adaptive_dpi(target_px=3000, min_dpi=300, max_dpi=600):
     """Compute DPI so that the longest figure dimension hits target_px pixels.
     Keeps file sizes proportional to figure content rather than flat 800 DPI everywhere."""
     w, h = plt.gcf().get_size_inches()
@@ -595,6 +595,416 @@ def plot_common_interclick(data, path, save=False, x_axis_num=False, ylim_min=0.
     if save:
         plt.savefig(f'{path}/{plot_title}_mean_interclicks_with_accuracy.pdf', bbox_inches='tight', dpi=_adaptive_dpi())
     plt.show()
+
+#--------------------------------------------------
+
+def _plot_interclick_ax(data, seq_name, ax,
+                        color='black',
+                        ylim_min=0.4, ylim_max=1.0,
+                        show_y_left=True, show_y_right=True,
+                        vlines=False,
+                        limit_interclick=20,
+                        text_size=13, sub_size=18,
+                        band_colors=None):
+    """Plot a single interclick-timing panel (fully-correct trials only) onto an existing axis.
+
+    Returns the twin right-axis (ax2) so the caller can set labels on it.
+    """
+    _BAND_PALETTE = ['#EE9B00', '#94D2BD', '#C2A5CF', '#335C81']
+    if band_colors is None:
+        band_colors = _BAND_PALETTE
+
+    # --- Data preparation ---
+    subset = data[data['seq_name'] == seq_name].copy()
+    accuracy = compute_accuracy(subset)
+    mean_accuracy = np.mean(accuracy, axis=0)
+    sem_accuracy  = np.std(accuracy,  axis=0) / np.sqrt(len(accuracy))
+
+    correct_rows  = subset[subset['performance'] == 'success']['interclick_time'].to_numpy()
+    sample_size   = correct_rows.shape[0]
+    if sample_size >= limit_interclick:
+        timings      = np.array([arr for arr in correct_rows])
+        mean_timings = np.mean(timings, axis=0) / 1000
+        sem_timings  = (np.std(timings, axis=0) / np.sqrt(len(timings))) / 1000
+    else:
+        mean_timings = np.array([])
+        sem_timings  = np.array([])
+
+    # --- Colored background bands (one per token-group position) ---
+    token_groups = real_mapping.get(seq_name, '')
+    unique_groups = sorted(set(token_groups))
+    group_color = {g: band_colors[i % len(band_colors)] for i, g in enumerate(unique_groups)}
+    for i, g in enumerate(token_groups):
+        ax.axvspan(i - 1, i, alpha=0.25, color=group_color[g], zorder=0)
+
+    # --- X-axis: group labels (top row) and response index (bottom row) ---
+    group_labels = [str(int(c) + 1) for c in token_groups]
+    ax.set_xticks(ticks=[i - 0.5 for i in range(12)], labels=range(1,13), fontsize=text_size - 2)
+    ax.set_xlim(xmin=-1, xmax=11)
+
+    # # Secondary x-axis showing response index 1-12 below the group labels
+    # ax_idx = ax.twiny()
+    # ax_idx.set_xlim(ax.get_xlim())
+    # ax_idx.set_xticks([i - 0.5 for i in range(12)])
+    # ax_idx.set_xticklabels([str(i + 1) for i in range(12)], fontsize=text_size - 3)
+    # ax_idx.xaxis.set_ticks_position('bottom')
+    # ax_idx.xaxis.set_label_position('bottom')
+    # ax_idx.spines['bottom'].set_position(('outward', 20))
+    # ax_idx.spines['top'].set_visible(False)
+
+    # --- Title and n= annotation ---
+    display_name = (
+        'Rep-Nested'   if seq_name == 'Repetition-Nested' else
+        'Global-Rep'   if seq_name == 'control NoLocal nested' else
+        'Local-Rep'    if seq_name == 'control NoGlobal nested' else
+        seq_name.replace('Repetition-', 'Rep-')
+    )
+    ax.set_title(display_name, fontweight='bold', color=color, fontsize=sub_size, pad=10)
+    ax.text(0.98, 0.98, f'n={sample_size}',
+            transform=ax.transAxes, fontsize=text_size,
+            verticalalignment='top', horizontalalignment='right')
+
+    # --- Interclick timing on primary axis ---
+    if mean_timings.size >= 10:
+        if vlines:
+            ax.vlines(x=range(11), ymin=ylim_min, ymax=ylim_max, colors='black', ls='--', lw=1)
+        ax.errorbar(range(11), mean_timings, yerr=sem_timings,
+                    fmt='o', capsize=5, capthick=2, color='black', zorder=3)
+        ax.plot(range(11), mean_timings, color='black', zorder=3)
+        ax.set_ylim(ylim_min, ylim_max)
+
+    if show_y_left:
+        ax.set_ylabel("Interclick\nduration (s)", rotation=0, fontstyle='italic', fontsize=text_size)
+        ax.yaxis.set_label_coords(-0.22, 0.92)
+        ax.set_xlabel("response index", fontstyle='italic', fontsize=text_size - 1, labelpad=35)
+    else:
+        ax.set_yticks([])
+
+    # --- Cumulative accuracy on secondary axis ---
+    ax2 = ax.twinx()
+    ax2.bar([i - 0.5 for i in range(12)], mean_accuracy,
+            yerr=sem_accuracy, capsize=5, alpha=0.3, color='gray',
+            width=0.9, error_kw=dict(elinewidth=2, alpha=0.5), zorder=2)
+    ax2.set_ylim(0, 1)
+
+    if show_y_right:
+        ax2.set_ylabel("Cumulative\naccuracy", rotation=0, fontstyle='italic', fontsize=text_size)
+        ax2.yaxis.set_label_coords(1.30, 0.92)
+    else:
+        ax2.set_yticks([])
+
+    return ax2
+
+
+def plot_figure5_interclick(data, path,
+                            ylim_min=0.3, ylim_max=1.0,
+                            figsize=(22, 16),
+                            save=True, file_prefix='figure5'):
+    """Generate figure 5: asymmetric 2×4 grid of interclick-timing panels.
+
+    Layout (GridSpec 2×4):
+      Row 0: [Rep-Nested (cols 0-1)] [Global-Rep (col 2)] [Local-Rep (col 3)]
+      Row 1: [empty (col 0)]         [Rep-2 (col 1)]      [Rep-3 (col 2)]  [Rep-4 (col 3)]
+    """
+    from matplotlib.gridspec import GridSpec
+
+    panels = [
+        # (seq_name,                    gs_row, gs_col_slice, title_color, show_left, show_right)
+        ('Repetition-Nested',           0, (0, 2), '#762A83', True,  False),
+        ('control NoLocal nested',      0, (2, 3), '#C2A5CF', False, False),
+        ('control NoGlobal nested',     0, (3, 4), '#C2A5CF', False, True),
+        ('Repetition-2',                1, (1, 2), '#364B9A', True,  False),
+        ('Repetition-3',                1, (2, 3), '#0f75bd', False, False),
+        ('Repetition-4',                1, (3, 4), '#25aae2', False, True),
+    ]
+
+    fig = plt.figure(figsize=figsize, facecolor='white')
+    gs  = GridSpec(2, 4, figure=fig,
+                   width_ratios=[0.5, 1, 1, 1],
+                   height_ratios=[1.5, 1],
+                   wspace=0.08, hspace=0.5)
+
+    for seq_name, row, (col_start, col_end), color, show_left, show_right in panels:
+        ax = fig.add_subplot(gs[row, col_start:col_end])
+        _plot_interclick_ax(
+            data=data, seq_name=seq_name, ax=ax,
+            color=color,
+            ylim_min=ylim_min, ylim_max=ylim_max,
+            show_y_left=show_left, show_y_right=show_right,
+            vlines=False, limit_interclick=20,
+            text_size=13, sub_size=18,
+        )
+
+    if save:
+        os.makedirs(path, exist_ok=True)
+        plt.savefig(f'{path}/{file_prefix}_interclick.png', bbox_inches='tight', dpi=300)
+        print(f'Saved figure 5 to {path}/{file_prefix}_interclick.png')
+    plt.close()
+
+
+def plot_interclick_per_sequence(data, path,
+                                 ylim_min=0.3, ylim_max=1.0,
+                                 figsize=(10, 7),
+                                 exclude=None):
+    """Save one PNG per unique seq_name in data, into {path}/interclicks_accuracy/."""
+    if exclude is None:
+        exclude = ['Training']
+    out_dir = os.path.join(path, 'interclicks_accuracy')
+    os.makedirs(out_dir, exist_ok=True)
+
+    seqs = [s for s in sorted(data['seq_name'].unique()) if s not in exclude]
+    for seq_name in seqs:
+        fig, ax = plt.subplots(figsize=figsize, facecolor='white')
+        _plot_interclick_ax(
+            data=data, seq_name=seq_name, ax=ax,
+            ylim_min=ylim_min, ylim_max=ylim_max,
+            show_y_left=True, show_y_right=True,
+            vlines=False, limit_interclick=20,
+            text_size=13, sub_size=18,
+        )
+        safe_name = seq_name.replace('/', '-').replace(' ', '_')
+        out_path = os.path.join(out_dir, f'{safe_name}.png')
+        plt.savefig(out_path, bbox_inches='tight', dpi=300)
+        plt.close()
+        print(f'Saved {out_path}')
+
+
+def plot_interclick_grid(data, path,
+                         ncols=4,
+                         ylim_min=0.3, ylim_max=1.0,
+                         panel_size=(7, 6),
+                         exclude=None,
+                         file_prefix='interclick_grid'):
+    """Save a grid figure (one panel per sequence) to {path}/{file_prefix}.png."""
+    from matplotlib.gridspec import GridSpec
+    import math
+
+    if exclude is None:
+        exclude = ['Training']
+
+    seqs = [s for s in sorted(data['seq_name'].unique()) if s not in exclude]
+    n    = len(seqs)
+    nrows = math.ceil(n / ncols)
+
+    fig = plt.figure(figsize=(panel_size[0] * ncols, panel_size[1] * nrows), facecolor='white')
+    gs  = GridSpec(nrows, ncols, figure=fig, wspace=0.1, hspace=0.55)
+
+    for idx, seq_name in enumerate(seqs):
+        row, col = divmod(idx, ncols)
+        ax = fig.add_subplot(gs[row, col])
+        _plot_interclick_ax(
+            data=data, seq_name=seq_name, ax=ax,
+            ylim_min=ylim_min, ylim_max=ylim_max,
+            show_y_left=(col == 0),
+            show_y_right=(col == ncols - 1 or idx == n - 1),
+            vlines=False, limit_interclick=20,
+            text_size=11, sub_size=14,
+        )
+
+    # Hide any unused cells in the last row
+    for idx in range(n, nrows * ncols):
+        row, col = divmod(idx, ncols)
+        fig.add_subplot(gs[row, col]).set_visible(False)
+
+    os.makedirs(path, exist_ok=True)
+    out_path = os.path.join(path, f'{file_prefix}.png')
+    plt.savefig(out_path, bbox_inches='tight', dpi=300)
+    plt.close()
+    print(f'Saved {out_path}')
+
+
+def _get_boundary_indices(seq_name):
+    """Return ICI indices (0–10) where consecutive token groups differ in real_mapping."""
+    mapping = real_mapping.get(seq_name, '')
+    if len(mapping) < 12:
+        return []
+    return [i for i in range(11) if mapping[i] != mapping[i + 1]]
+
+
+def generate_ici_accuracy_report(data, path, seq_list=None,
+                                  filename='ici_report.txt', min_trials=5,
+                                  title='ICI AND ACCURACY ANALYSIS'):
+    """
+    Write a clean text report of:
+      - Overall boundary vs. within-constituent ICI (Wilcoxon, pooled)
+      - Per-sequence: error rate, cumulative accuracy, boundary-vs-within ICI test
+      - Sequence-specific sub-tests for Rep-Nested, Local-Rep, Mirror-Rep
+    Each correct trial is an independent observation (no per-participant averaging).
+    Saved to {path}/{filename}.
+    """
+    import scipy.stats as _ss
+    import math
+
+    if seq_list is None:
+        seq_list = [s for s in sorted(data['seq_name'].unique()) if s != 'Training']
+
+    N = data['participant_ID'].nunique()
+
+    # ── helpers ────────────────────────────────────────────────────────
+    def _trial_ici_pairs(seq_name, b_idx, w_idx):
+        """Return (b_vals, w_vals) where each element is one correct trial's mean ICI."""
+        correct = data[(data['seq_name'] == seq_name) & (data['performance'] == 'success')]
+        b_vals, w_vals = [], []
+        for arr in correct['interclick_time']:
+            arr = np.array(arr)
+            vb = [i for i in b_idx if i < len(arr)]
+            vw = [i for i in w_idx if i < len(arr)]
+            if vb and vw:
+                b_vals.append(arr[vb].mean())
+                w_vals.append(arr[vw].mean())
+        return b_vals, w_vals
+
+    def _trial_ici_vals(seq_name, idx_list):
+        """Return list of per-trial mean ICI at idx_list positions, correct trials only."""
+        correct = data[(data['seq_name'] == seq_name) & (data['performance'] == 'success')]
+        vals = []
+        for arr in correct['interclick_time']:
+            arr = np.array(arr)
+            valid = [i for i in idx_list if i < len(arr)]
+            if valid:
+                vals.append(arr[valid].mean())
+        return vals
+
+    def _wilcoxon_str(a, b, label='trials'):
+        if len(a) < 3:
+            return f'[n={len(a)} {label}, too few for test]'
+        try:
+            stat, p = _ss.wilcoxon(a, b)
+            n_nz = int(np.sum(np.array(a) - np.array(b) != 0))
+            r = round(_ss.norm.isf(p / 2) / math.sqrt(n_nz), 3) if n_nz > 0 else float('nan')
+            p_str = ('< .001' if p < .001 else
+                     '< .01'  if p < .01  else
+                     '< .05'  if p < .05  else f'{p:.3f}')
+            return f'W={stat:.0f}, p={p_str}, r={r:.3f}  (n={len(a)} {label})'
+        except Exception as e:
+            return f'[error: {e}]'
+
+    def _ici_line(label, vals, other_label=None, other_vals=None):
+        if not vals:
+            return f'    {label}: [no data]'
+        line = f'    {label}: {np.mean(vals):.0f} ± {_ss.sem(vals):.0f} ms'
+        if other_vals is not None:
+            line += f'  |  {other_label}: {np.mean(other_vals):.0f} ± {_ss.sem(other_vals):.0f} ms'
+        return line
+
+    sep  = '=' * 80
+    thin = '-' * 60
+    lines = [sep, f'{title}  (N={N} participants)', sep]
+
+    # ── Overall: pool all correct trials across sequences ───────────────
+    all_b, all_w = [], []
+    for sn in seq_list:
+        b_idx = _get_boundary_indices(sn)
+        w_idx = [i for i in range(11) if i not in b_idx]
+        if not b_idx or not w_idx:
+            continue
+        bv, wv = _trial_ici_pairs(sn, b_idx, w_idx)
+        all_b.extend(bv)
+        all_w.extend(wv)
+    lines += ['',
+              'OVERALL: Boundary vs. within-constituent ICIs (correct trials only, all sequences)',
+              _ici_line('Boundary', all_b, 'Within', all_w),
+              f'    Wilcoxon: {_wilcoxon_str(all_b, all_w)}']
+
+    # ── Per-sequence ────────────────────────────────────────────────────
+    for seq_name in seq_list:
+        b_idx = _get_boundary_indices(seq_name)
+        w_idx = [i for i in range(11) if i not in b_idx]
+
+        subset  = data[data['seq_name'] == seq_name]
+        correct = subset[subset['performance'] == 'success']
+        n_pids  = subset['participant_ID'].nunique()
+        n_corr_pids   = correct['participant_ID'].nunique()
+        n_corr_trials = len(correct)
+
+        pp_err = [
+            100 * (data[(data['participant_ID'] == pid) &
+                        (data['seq_name'] == seq_name)]['performance'] != 'success').mean()
+            for pid in subset['participant_ID'].unique()
+        ]
+
+        lines += ['', thin,
+                  f'  {seq_name}',
+                  thin,
+                  f'  N={n_pids}  |  Error rate: {np.mean(pp_err):.1f}% ± {_ss.sem(pp_err):.1f}% SEM'
+                  f'  |  {n_corr_pids} participant(s) / {n_corr_trials} correct trial(s)']
+
+        # Per-position cumulative accuracy
+        accuracy_arr = compute_accuracy(subset)
+        if len(accuracy_arr) > 0:
+            m = np.mean(accuracy_arr, axis=0) * 100
+            s = _ss.sem(accuracy_arr, axis=0) * 100
+            lines.append('  Cumulative accuracy (%) per position:')
+            lines.append('    Pos:  ' + '  '.join(f'{i+1:>5}' for i in range(len(m))))
+            lines.append('    Mean: ' + '  '.join(f'{v:>5.1f}' for v in m))
+            lines.append('    SEM:  ' + '  '.join(f'{v:>5.1f}' for v in s))
+
+        if n_corr_trials < min_trials:
+            lines.append(f'  [ICI analysis skipped — only {n_corr_trials} correct trial(s)]')
+            continue
+
+        # Semantically-defined group comparisons (from compare_seq_interclick_indexes_groups)
+        # Each entry: (label1, indices1, label2, indices2)
+        CUSTOM_TESTS = {
+            'Repetition-2': [
+                ('Chunk boundaries', [1, 3, 5, 7, 9], 'Within chunks', [2, 4, 6, 8, 10]),
+            ],
+            'Repetition-3': [
+                ('Chunk boundaries', [2, 5, 8], 'Within chunks', [1, 3, 4, 6, 7, 9, 10]),
+            ],
+            'Repetition-4': [
+                ('Chunk boundaries', [3, 7], 'Within chunks', [1, 2, 4, 5, 6, 8, 9, 10]),
+            ],
+            'Repetition-Nested': [
+                ('Local boundaries [1,3,7,9]', [1, 3, 7, 9], 'Within [0,2,4,8,10]', [0, 2, 4, 8, 10]),
+                ('Local boundaries [1,3,7,9]', [1, 3, 7, 9], 'Global boundary [5]', [5]),
+            ],
+            'control NoLocal nested': [
+                ('Chunk boundaries [2,5,8]', [2, 5, 8], 'Within [1,3,4,6,7,9,10]', [1, 3, 4, 6, 7, 9, 10]),
+                ('Midpoint [5]', [5], 'Sub-boundaries [2,8]', [2, 8]),
+            ],
+            'control NoGlobal nested': [
+                ('Local boundaries [1,3,7,9]', [1, 3, 7, 9], 'Within [0,2,4,8,10]', [0, 2, 4, 8, 10]),
+                ('Midpoint [5]', [5], 'Sub-boundaries [2,8]', [2, 8]),
+            ],
+        }
+
+        if seq_name in CUSTOM_TESTS:
+            for lbl1, idx1, lbl2, idx2 in CUSTOM_TESTS[seq_name]:
+                bv, wv = _trial_ici_pairs(seq_name, idx1, idx2)
+                if len(bv) >= min_trials:
+                    lines += [f'  ICI — {lbl1} {idx1}  vs.  {lbl2} {idx2}:',
+                              _ici_line(lbl1, bv, lbl2, wv),
+                              f'    Wilcoxon: {_wilcoxon_str(bv, wv)}']
+        else:
+            # Fall back to real_mapping boundary detection
+            if not b_idx:
+                lines.append('  [No constituent boundary mapping available]')
+            elif w_idx:
+                bv, wv = _trial_ici_pairs(seq_name, b_idx, w_idx)
+                lines += [f'  ICI — All boundary positions {b_idx}  vs.  Within positions {w_idx}:',
+                          _ici_line('Boundary', bv, 'Within', wv),
+                          f'    Wilcoxon: {_wilcoxon_str(bv, wv)}']
+            else:
+                lines.append('  [All transitions are boundaries — no within-constituent reference]')
+
+            # Mirror-Rep: additional mirror-point sub-test
+            if seq_name == 'Mirror-Rep':
+                bv = _trial_ici_vals(seq_name, [3, 7])
+                wv = _trial_ici_vals(seq_name, [i for i in range(11) if i not in [3, 7]])
+                n = min(len(bv), len(wv))
+                if n >= min_trials:
+                    lines += ['  Sub-test — Mirror symmetry points ICI[3,7] vs. all other ICIs:',
+                              _ici_line('Mirror pts ICI[3,7]', bv, 'All others', wv),
+                              f'    Wilcoxon: {_wilcoxon_str(bv[:n], wv[:n])}']
+
+    lines += ['', sep, 'END OF REPORT', sep]
+
+    os.makedirs(path, exist_ok=True)
+    out_path = os.path.join(path, filename)
+    with open(out_path, 'w') as f:
+        f.write('\n'.join(lines))
+    print(f'Saved ICI report to {out_path}')
 
 #--------------------------------------------------
 
@@ -1504,6 +1914,7 @@ def plot_mean_dl(
                     sequences=seq_name_list,
                     save=True,
                     unfill_controls=True,
+                    is_control = None, #Fill with an array of bool if unfill_controls True
                     colors_figure=plot_colors,
                     change_label=False,
                     x_interval=False,
@@ -1516,6 +1927,31 @@ def plot_mean_dl(
                     group_structured=group_structured_exp1,
                     group_control=group_control_exp1):
     from scipy import stats as scipy_stats
+
+    # Remap internal seq_names → paper-facing labels for display
+    _SEQ_MAP = {
+        'Rep-2': 'Repetition-2',           'Rep-3': 'Repetition-3',
+        'Rep-4': 'Repetition-4',           'Rep-Nested': 'Repetition-Nested',
+        'Rep-Global': 'control NoLocal nested',
+        'Rep-Local':  'control NoGlobal nested',
+        'CRep-2': 'control Repetition-2',  'CRep-3': 'control Repetition-3',
+        'CRep-4': 'control Repetition-4',
+        'Mirror-Rep': 'Mirror-Rep',         'Mirror-NoRep': 'Mirror-NoRep',
+        'NamedSubprogram-1': 'sub-programs 1',
+        'NamedSubprogram-2': 'sub-programs 2',
+        'Print': 'play',                    'Print-4': 'play 4 tokens',
+        'Control Mirror-Rep':      'control Mirror-Rep',
+        'Control Mirror-NoRep':    'control Mirror-NoRep',
+        'Control NamedSubprogram-1': 'control sub-programs 1',
+        'Control NamedSubprogram-2': 'control sub-programs 2',
+        'Control Print':   'control play',
+        'Control Print-4': 'control play 4 tokens',
+    }
+    _SEQ_RENAME = {v: k for k, v in _SEQ_MAP.items()}  # internal name → paper label
+    display_names = [_SEQ_RENAME.get(s, s) for s in sequences]
+    # Build is_control from display name if not explicitly provided
+    if is_control is None:
+        is_control = ['control' in d.lower() for d in display_names]
 
     # Participants IDs
     IDs=[data.iloc[0]["participant_ID"]]
@@ -1658,28 +2094,19 @@ def plot_mean_dl(
    
     fig, ax = plt.subplots(figsize=(figsize_x,figsize_y))
 
-    # Alternate colors for y-tick labels based on 'control' keyword
+    # Bold for structured, normal for controls — checked on the display name
     yticklabels = []
-    fill_conditions=[]
-    for label in sequences:
-        #color = 'grey' if 'control' in label.lower() else 'black'
-        # yticklabels.append((label, color))
-        weight='bold' if 'control' not in label.lower() else 'skip'
-        yticklabels.append((label, weight))
-        
-    label_map = {
-        "control NoLocal nested": "Global Repetition",
-        "control NoGlobal nested": "Local Repetition"
-    }
+    fill_conditions = []
+    for (disp, control_bool) in zip(display_names,is_control):
+        weight = 'skip' if control_bool else 'bold'
+        yticklabels.append((disp, weight))
+        if unfill_controls:
+            fill_conditions.append(not control_bool)
 
-    # Replace only if the sequence name is in the dictionary
-    display_labels = [label_map.get(seq, seq) for seq in sequences]
+    if not unfill_controls:
+        fill_conditions = [True] * len(display_names)
 
-    if unfill_controls:
-        for label in display_labels:
-            fill_conditions.append(not 'control' in label.lower())
-    else:
-        fill_conditions = [True] * len(display_labels)
+    display_labels = display_names  # used by the rest of the function
 
     # if change_label:
     #     fill_conditions=[True, True, True, False]
@@ -3557,7 +3984,7 @@ def plot_length_distribution(data,path,show_plot=False,max_y=140,sequence_list=s
         f.write('\n' + '=' * 130 + '\n')
         f.write(f'{sections_ok} / 7 sections completed successfully.\n')
         
-def plot_all_length(data,path,sequence_list=seq_name_list,nb_rows=5,nb_cols=5,figsize=(25,25)):
+def plot_all_length(data,path,sequence_list=seq_name_list,nb_rows=5,nb_cols=5,figsize=(25,25),file_prefix=''):
     ### Plotting 
     # Create the figure and axes
     fig, axes = plt.subplots(nrows=nb_rows, ncols=nb_cols, figsize=figsize)
@@ -3600,7 +4027,7 @@ def plot_all_length(data,path,sequence_list=seq_name_list,nb_rows=5,nb_cols=5,fi
         name_index+=1
 
     # Save and show the plot
-    plt.savefig(f'{path}/all_length_distribution_subplots.pdf', bbox_inches='tight', dpi=_adaptive_dpi())
+    plt.savefig(f'{path}/{file_prefix}all_length_distribution_subplots.pdf', bbox_inches='tight', dpi=_adaptive_dpi())
     # Close the current figure window
     plt.close()
 
@@ -5289,11 +5716,12 @@ def plot_comparison_AIC_models(path, aic_arr, title="Δ(AIC) of different comple
     delta_aic_values = [value - min_aic for value in aic_values]
 
     # Create the plot
-    fig, ax = plt.subplots(figsize=(10, 5))
+    fig, ax = plt.subplots(figsize=(4, 5))
     ax.barh(range(len(model_names)), delta_aic_values, color='grey')
 
     # Set y-axis ticks and labels (already ordered from best to worst)
-    ax.invert_yaxis() 
+    ax.invert_yaxis()
+    ax.set_xticks(np.arange(0, max(delta_aic_values), 250))
     ax.set_yticks(range(len(model_names)))
     ax.set_yticklabels(model_names)
 
