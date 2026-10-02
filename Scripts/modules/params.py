@@ -559,36 +559,68 @@ complexities_allOperations_noChunk={
     "control NoGlobal nested":10,
 }
 
+# complexities_post_fit_exp1={
+#     #These are irrelevant as the fit is only on exp1 sequences
+#         "play 4 tokens":20.3,
+#     "control play 4 tokens":17.6,
+#     "sub-programs 1":24.3,
+#     "control sub-programs 1":26.3,
+#     "sub-programs 2":27.3,
+#     "control sub-programs 2":29.3,
+#     "index i":17.0,
+#     "control index i":17.0,
+#     "play":21.0,
+#     "control play":21.0,
+#     "Insertion":21.3,
+#     "Suppression":23.3,
+#     "Mirror-Rep":21.0,
+#     "control Mirror-Rep":23.0,
+#     "Mirror-NoRep":27.0,
+#     "control Mirror-NoRep":27.0,
+
+
+# # Only below values are relevant. This is used in the main article.
+#      "Repetition-2":13.530376252379815,
+#     "control Repetition-2":17.0,
+#     "Repetition-3":13.6,
+#     "control Repetition-3":26.0,
+#     "Repetition-4":14.230376252379815,
+#     "control Repetition-4":28.0,
+#     "Repetition-Nested":13.3,
+#     "control NoLocal nested":18.3,
+#     "control NoGlobal nested":19.0,
+# }
+
 complexities_post_fit_exp1={
     #These are irrelevant as the fit is only on exp1 sequences
-        "play 4 tokens":10,
-    "control play 4 tokens":8,
-    "sub-programs 1":13,
-    "control sub-programs 1":12,
-    "sub-programs 2":13,
-    "control sub-programs 2":12,
-    "index i":11,
-    "control index i":1,
-    "play":8,
-    "control play":13,
-    "Insertion":9,
-    "Suppression":9,
-    "Mirror-Rep":9,
-    "control Mirror-Rep":10,
-    "Mirror-NoRep":11,
-    "control Mirror-NoRep":12,
+        "play 4 tokens":20.3,
+    "control play 4 tokens":17.6,
+    "sub-programs 1":24.3,
+    "control sub-programs 1":26.3,
+    "sub-programs 2":27.3,
+    "control sub-programs 2":29.3,
+    "index i":17.0,
+    "control index i":17.0,
+    "play":21.0,
+    "control play":21.0,
+    "Insertion":21.3,
+    "Suppression":23.3,
+    "Mirror-Rep":21.0,
+    "control Mirror-Rep":23.0,
+    "Mirror-NoRep":27.0,
+    "control Mirror-NoRep":27.0,
 
 
 # Only below values are relevant. This is used in the main article.
-     "Repetition-2":7.593044574599119, 
-    "control Repetition-2":15.714093590000001, 
-    "Repetition-3":9.135983343653503, 
-    "control Repetition-3":26.263688933653505, 
-    "Repetition-4":8.971814173807974, 
-    "control Repetition-4":27.52233035283685,
-    "Repetition-Nested":8.846920333653502,
-    "control NoLocal nested":16.555304633653503,
-    "control NoGlobal nested":17.266241623653503,
+     "Repetition-2":7.585,
+    "control Repetition-2":15.000,
+    "Repetition-3":8.585,
+    "control Repetition-3":24.585,
+    "Repetition-4":8.585,
+    "control Repetition-4":26.000,
+    "Repetition-Nested":8.585,
+    "control NoLocal nested":15.585,
+    "control NoGlobal nested":16.585,
 }
 # ---------------------------------------
 # ************ Sequences subsets for plotting ************
@@ -901,18 +933,33 @@ aic_values_ext=[
 ]
 
 # -- AIC values for : experiment 2 AND seq_name_list_exp1_only
+# aic_values_exp2_rep=[
+#   6161.755118, #AIC_value_LoT
+#   6276.880730, #AIC_value_subjective
+#   6908.272433, #AIC_value_ShannonEntropy
+#   6623.987869, #AIC_value_ShannonEntropyBigram
+#   6351.666211, #AIC_value_LempelZiv
+#   6920.833588, #AIC_value_change
+#   6525.656380, #AIC_value_algorithmic
+#   6954.916696, #AIC_value_Subsymetries
+#   6953.193236, #AIC_value_chunk_local
+#   6635.228269 # AIC_value_chunk_global
+# ]
+
 aic_values_exp2_rep=[
-  6161.755118, #AIC_value_LoT
+  6184.638145, #AIC_value_LoT
   6276.880730, #AIC_value_subjective
   6908.272433, #AIC_value_ShannonEntropy
   6623.987869, #AIC_value_ShannonEntropyBigram
   6351.666211, #AIC_value_LempelZiv
   6920.833588, #AIC_value_change
+  6952.284966, #AIC_value_change_extended
   6525.656380, #AIC_value_algorithmic
   6954.916696, #AIC_value_Subsymetries
   6953.193236, #AIC_value_chunk_local
   6635.228269 # AIC_value_chunk_global
 ]
+
 
 # -- BIC (Bayesian Information Criterion) : experiment 2 AND seq_name_list_exp1_only
 bic_values_exp2_rep = [
@@ -940,6 +987,8 @@ aic_values_exp2_rep_corrected=[
   6945.673370, #AIC_value_chunk_local
   6625.928863 # AIC_value_chunk_global
 ]
+
+
 
 AIC_models_ext={key:value for key,value in zip(name_complexities,aic_values_ext)}
 

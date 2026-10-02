@@ -1,7 +1,7 @@
 library(lme4)
 
 # Load data
-data <- read.csv("/Users/elyestabbane/Documents/UNICOG/2-Experiments/memocrush/Data/processed/both/2024-08_22_complexity_dataset_EXT_only_REP.csv")
+data <- read.csv("/Users/elyestabbane/Documents/UNICOG/2-Experiments/memocrush/Data/processed/both/2026-09-23_complexity_dataset_EXT_only_REP.csv")
 
 # Boxplots for different complexity measures
 boxplot(distance_dl ~ LoT.Complexity, col=c("white","lightgray"), data)
@@ -47,3 +47,14 @@ fit_model(distance_dl ~ Algorithmic.Complexity + (1 | participant_ID), data, "Al
 fit_model(distance_dl ~ Subsymetries + (1 | participant_ID), data, "Subsymetries")
 fit_model(distance_dl ~ Chunk.Complexity.Local + (1 | participant_ID), data, "Chunk Complexity Local")
 fit_model(distance_dl ~ Chunk.Complexity.Global + (1 | participant_ID), data, "Chunk Complexity Global")
+
+# Pearson correlations between distance_dl and each complexity measure
+cat("\n--- Pearson Correlations with distance_dl ---\n")
+complexity_vars <- c("LoT.Complexity", "Subjective.Complexity", "Shannon.Entropy",
+                     "Shannon.Entropy.Bigram", "Lempel.Ziv", "Change.Complexity",
+                     "Change.Complexity.Extended", "Algorithmic.Complexity",
+                     "Subsymetries", "Chunk.Complexity.Local", "Chunk.Complexity.Global")
+for (var in complexity_vars) {
+  r <- cor.test(data$distance_dl, data[[var]], method = "pearson")
+  cat(sprintf("%s: r = %.4f, p = %.4e\n", var, r$estimate, r$p.value))
+}
